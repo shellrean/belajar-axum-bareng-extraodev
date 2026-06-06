@@ -1,0 +1,18 @@
+[package]
+name = "belajar_axum_lagi"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = { version = "0.8.7" , features = ["multipart"]}
+bcrypt = "0.17.1"
+chrono = "0.4.42"
+dotenv = "0.15.0"
+jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
+serde = {  version = "1.0.228", features = ["derive"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio", "postgres", "macros"] }
+thiserror = "2.0.17"
+tokio = { version = "1.48.0", features = ["full"] }
+tower = "0.5.2"
+tower_governor = "0.8.0"
+uuid = {version = "1.22.0", features = ["v4"]}
