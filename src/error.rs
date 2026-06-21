@@ -1,13 +1,14 @@
+use std::collections::HashMap;
+
+use axum::Json;
 use axum::extract::multipart::MultipartError;
 use axum::http::StatusCode;
-use axum::Json;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AppError {
-
     #[error("Database error: {0}")]
     DatabaseError(#[from] sqlx::Error),
 
@@ -16,7 +17,7 @@ pub enum AppError {
 
     #[error("Invalid login")]
     InvalidLogin(),
-    
+
     #[error("Invalid token")]
     InvalidToken(),
 
@@ -25,12 +26,16 @@ pub enum AppError {
 
     #[error("Io Error")]
     IoError(#[from] std::io::Error),
+
+    #[error("Validation error: {0}")]
+    ValidationError(#[from] validify::ValidationErrors),
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 struct ErrorResponse {
     status: u16,
-    message: String
+    message: String,
+    errors: HashMap<String, Vec<String>>,
 }
 
 impl IntoResponse for AppError {
@@ -38,42 +43,75 @@ impl IntoResponse for AppError {
         let (status, data) = match &self {
             AppError::DatabaseError(e) => {
                 eprintln!("Database error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorResponse {
-                    status: 99,
-                    message: "A database error occurred".to_string()
-                })
-            },
-            AppError::NotFound(msg) => {
-                (StatusCode::NOT_FOUND,
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    ErrorResponse {
+                        status: 99,
+                        message: "A database error occurred".to_string(),
+                        ..Default::default()
+                    },
+                )
+            }
+            AppError::NotFound(msg) => (
+                StatusCode::NOT_FOUND,
                 ErrorResponse {
                     status: 40,
-                    message: format!("Resource not found: {}", msg)
-                })
-            },
-            AppError::InvalidLogin() => {
-                (StatusCode::UNAUTHORIZED, ErrorResponse {
+                    message: format!("Resource not found: {}", msg),
+                    ..Default::default()
+                },
+            ),
+            AppError::InvalidLogin() => (
+                StatusCode::UNAUTHORIZED,
+                ErrorResponse {
                     status: 41,
-                    message: "Invalid username or password".into()
-                })
-            },
-            AppError::InvalidToken() => {
-                (StatusCode::UNAUTHORIZED, ErrorResponse {
+                    message: "Invalid username or password".into(),
+                    ..Default::default()
+                },
+            ),
+            AppError::InvalidToken() => (
+                StatusCode::UNAUTHORIZED,
+                ErrorResponse {
                     status: 42,
-                    message: "Invalid or missing token".into()
-                })
-            },
-            AppError::ErrorMultipart(e) => {
-                (StatusCode::BAD_REQUEST, ErrorResponse {
+                    message: "Invalid or missing token".into(),
+                    ..Default::default()
+                },
+            ),
+            AppError::ErrorMultipart(e) => (
+                StatusCode::BAD_REQUEST,
+                ErrorResponse {
                     status: 40,
-                    message: e.to_string()
-                })
-            },
-            AppError::IoError(e) => {
-                (StatusCode::BAD_REQUEST, ErrorResponse {
+                    message: e.to_string(),
+                    ..Default::default()
+                },
+            ),
+            AppError::IoError(e) => (
+                StatusCode::BAD_REQUEST,
+                ErrorResponse {
                     status: 40,
-                    message: e.to_string()
-                })
+                    message: e.to_string(),
+                    ..Default::default()
+                },
+            ),
+            AppError::ValidationError(e) => {
+                let mut errors: HashMap<String, Vec<String>> = HashMap::new();
+                for error in e.field_errors() {
+                    if let (Some(field_name), Some(message)) = (error.field_name(), error.message())
+                    {
+                        errors
+                            .entry(field_name.to_string())
+                            .or_default()
+                            .push(message.to_string());
+                    }
+                }
+
+                (
+                    StatusCode::BAD_REQUEST,
+                    ErrorResponse {
+                        status: 40,
+                        message: String::from("validation error"),
+                        errors: errors,
+                    },
+                )
             }
         };
         let body = Json(data);

@@ -59,7 +59,7 @@ async fn main() {
         .with_state(app_state)
         .layer(GovernorLayer::new(governor_layer));
 
-    let listener = TcpListener::bind("0.0.0.0:4000").await.unwrap();
+    let listener = TcpListener::bind("0.0.0.0:4001").await.unwrap();
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
