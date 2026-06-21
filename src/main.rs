@@ -2,18 +2,16 @@ mod error;
 mod layers;
 mod models;
 mod modules;
-mod routes;
 mod state;
 
 use crate::modules::auth::AuthService;
+use crate::modules::task::TaskService;
 use crate::state::AppState;
 use axum::routing::{patch, post};
-use axum::{Router, ServiceExt, middleware};
-use serde::Serialize;
+use axum::{Router, middleware};
 use sqlx::PgPool;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
-use tower::ServiceBuilder;
 use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
 
@@ -33,6 +31,7 @@ async fn main() {
         db: db_pool.clone(),
         storage_path,
         auth_service: AuthService::new(db_pool.clone()),
+        task_service: TaskService::new(db_pool.clone()),
     };
 
     let governor_layer = GovernorConfigBuilder::default()
@@ -44,12 +43,15 @@ async fn main() {
     let public_route = Router::new().route("/login", post(modules::auth::routes::login));
 
     let protected_route = Router::new()
-        .route("/tasks", post(routes::task::create).get(routes::task::list))
+        .route(
+            "/tasks",
+            post(modules::task::routes::create).get(modules::task::routes::list),
+        )
         .route(
             "/tasks/{id}",
-            patch(routes::task::update).delete(routes::task::delete),
+            patch(modules::task::routes::update).delete(modules::task::routes::delete),
         )
-        .route("/upload", post(routes::task::upload))
+        .route("/upload", post(modules::task::routes::upload))
         .layer(middleware::from_fn(layers::auth::validate_token));
 
     let app = Router::new()

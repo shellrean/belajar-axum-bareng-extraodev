@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct Task {
     pub id: i32,
     pub title: String,
-    pub completed: bool
+    pub completed: bool,
 }
 
 #[derive(Deserialize)]
@@ -15,5 +15,5 @@ pub struct CreateTask {
 #[derive(Deserialize)]
 pub struct UpdateTask {
     pub title: Option<String>,
-    pub completed: Option<bool>
+    pub completed: Option<bool>,
 }
