@@ -28,7 +28,6 @@ async fn main() {
         .expect("Could not connect to PostgreSQL database");
 
     let app_state = AppState {
-        db: db_pool.clone(),
         storage_path,
         auth_service: AuthService::new(db_pool.clone()),
         task_service: TaskService::new(db_pool.clone()),
